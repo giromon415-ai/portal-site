@@ -34,6 +34,6 @@ jobs:
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PARTIGIANO2017_PORTAL }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SOCCER_TRACKER_6288C }}
           channelId: live
-          projectId: partigiano2017-portal
+          projectId: soccer-tracker-6288c

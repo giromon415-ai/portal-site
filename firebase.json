@@ -1,6 +1,6 @@
-﻿{
+{
   "hosting": {
-    "site": "partigiano2017-portal",
+    "site": "soccer-tracker-6288c",
     "public": "out",
     "cleanUrls": true,
     "ignore": [

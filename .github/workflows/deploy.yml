@@ -2,21 +2,35 @@
 
 on:
   schedule:
-    # 04:00 JST
+    # Daily at 4:00 JST (19:00 UTC)
     - cron: '0 19 * * *'
   workflow_dispatch:
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_YOUTUBE_API_KEY: "AIzaSyBNJRzadYai0kH0v1LtlwqN1EsfTiTWUMQ"
+      NEXT_PUBLIC_FIREBASE_API_KEY: "AIzaSyAQUGm1pJlvQYOds0Lf7ET94U6ZR4MHexw"
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "soccer-tracker-6288c.firebaseapp.com"
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: "soccer-tracker-6288c"
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "soccer-tracker-6288c.firebasestorage.app"
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "237501400135"
+      NEXT_PUBLIC_FIREBASE_APP_ID: "1:237501400135:web:c5c3e84daca71a7b3b5d62"
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
-      - run: npm ci
-      - run: npm run build
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}

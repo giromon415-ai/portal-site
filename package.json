@@ -1,0 +1,33 @@
+{
+  "name": "pulsing-apollo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "firebase": "^12.9.0",
+    "lucide-react": "^0.563.0",
+    "magic-string": "^0.30.21",
+    "next": "16.1.6",
+    "node-ical": "^0.25.1",
+    "playwright": "^1.58.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "swiper": "^12.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/firebase": "^2.4.32",
+    "@types/node": "^20.19.33",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

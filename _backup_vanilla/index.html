@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soccer Tracker</title>
+    <meta name="robots" content="noindex">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDKs (Compat) -->
+    <script src="/__/firebase/10.8.0/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.8.0/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <style>
+        /* カスタムスタイル: 視認性向上のための微調整 */
+        .btn-touch {
+            min-height: 60px;
+            /* タッチしやすいサイズ */
+            font-weight: bold;
+        }
+
+        .text-shadow {
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-900 select-none pb-20">
+
+    <!-- Header -->
+    <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="flex justify-between items-center max-w-2xl mx-auto">
+            <h1 class="text-xl font-bold cursor-pointer" onclick="app.router.go('home')">⚽ Soccer Tracker</h1>
+            <div class="flex items-center space-x-2">
+                <button onclick="window.rescueData()"
+                    class="text-xs bg-red-700 px-3 py-2 rounded hover:bg-red-600 text-white font-bold border-2 border-white shadow-lg">緊急救出</button>
+                <button onclick="app.router.go('stats')"
+                    class="text-sm bg-blue-700 px-3 py-1 rounded hover:bg-blue-600">集計</button>
+                <button onclick="app.router.go('settings')"
+                    class="text-sm bg-blue-700 px-3 py-1 rounded hover:bg-blue-600">設定</button>
+                <!-- Auth UI -->
+                <button id="btn-login" onclick="app.auth.login()"
+                    class="text-sm bg-green-600 px-3 py-1 rounded hover:bg-green-500">Login</button>
+                <button id="btn-logout" onclick="app.auth.logout()"
+                    class="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600 hidden">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="app" class="max-w-2xl mx-auto p-4 min-h-screen">
+
+        <!-- 1. Home View -->
+        <div id="view-home" class="view-section space-y-6">
+            <!-- Dashboard Section -->
+            <section class="bg-white p-4 rounded-lg shadow">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b">
+                    <div class="flex items-center space-x-2">
+                        <button onclick="app.ui.changeDate(-1)" class="text-gray-500 hover:text-gray-700 p-1">◀</button>
+                        <input type="date" id="dashboard-date"
+                            class="border rounded p-1 text-sm font-bold text-gray-700 bg-gray-50"
+                            onchange="app.ui.changeDate(0)">
+                        <button onclick="app.ui.changeDate(1)" class="text-gray-500 hover:text-gray-700 p-1">▶</button>
+                    </div>
+                    <button onclick="app.report.openModal()"
+                        class="text-blue-600 bg-blue-100 px-3 py-1 rounded text-sm font-bold hover:bg-blue-200">
+                        📋 出力
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                        <div class="text-sm text-gray-500">試合数</div>
+                        <div class="text-2xl font-bold" id="dashboard-match-count">0</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">総得点</div>
+                        <div class="text-2xl font-bold text-blue-600" id="dashboard-total-goals">0</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Match List Section -->
+            <section>
+                <h2 class="text-lg font-bold text-gray-700 mb-2">試合履歴</h2>
+                <div id="match-list" class="space-y-3">
+                    <!-- Javascript will populate this -->
+                    <div class="text-center text-gray-400 py-8">記録された試合はありません</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- 1.5 Stats View -->
+        <div id="view-stats" class="view-section hidden space-y-6">
+            <h2 class="text-2xl font-bold">期間集計</h2>
+            <section class="bg-white p-4 rounded-lg shadow space-y-4">
+                <div class="flex flex-col space-y-2">
+                    <label class="font-bold text-gray-700">期間指定</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="date" id="stats-start-date" class="border rounded p-2 flex-grow">
+                        <span>~</span>
+                        <input type="date" id="stats-end-date" class="border rounded p-2 flex-grow">
+                    </div>
+                </div>
+                <button onclick="app.stats.calculate()"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold shadow hover:bg-blue-700">
+                    集計実行
+                </button>
+            </section>
+
+            <section id="stats-result-container" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h3 class="font-bold text-lg mb-2 border-b pb-2">集計結果</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-500">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-2 py-2">No.</th>
+                                    <th scope="col" class="px-2 py-2">名前</th>
+                                    <th scope="col" class="px-2 py-2 text-right">Goal</th>
+                                    <th scope="col" class="px-2 py-2 text-right">Assist</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stats-table-body">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <div class="flex justify-between text-sm">
+                        <span>対象試合数:</span>
+                        <span id="stats-match-count" class="font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span>総得点:</span>
+                        <span id="stats-total-goals" class="font-bold">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <button onclick="app.router.go('home')"
+                class="w-full bg-gray-500 text-white py-3 rounded-lg font-bold">戻る</button>
+        </div>
+
+        <!-- 2. Settings / Player Master View -->
+        <div id="view-settings" class="view-section hidden space-y-6">
+            <h2 class="text-2xl font-bold">設定</h2>
+
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-bold text-lg mb-3">基本設定</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm mb-1">自チーム名</label>
+                        <input type="text" id="setting-my-team-name" class="w-full border rounded p-2"
+                            placeholder="My Team">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="text-gray-700 text-sm">デフォルト試合時間</label>
+                        <div class="flex items-center">
+                            <input type="number" id="setting-default-duration"
+                                class="border rounded p-2 w-20 text-center text-lg" value="20">
+                            <span class="ml-2">分</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h3 class="font-bold text-lg mb-3 flex justify-between items-center">
+                    選手マスタ
+                    <span class="text-sm font-normal text-gray-500" id="player-count">0人</span>
+                </h3>
+                <form id="add-player-form" class="flex gap-2 mb-4">
+                    <input type="number" id="new-player-number" placeholder="#"
+                        class="border rounded p-2 w-16 text-center" required>
+                    <input type="text" id="new-player-name" placeholder="選手名" class="border rounded p-2 flex-grow"
+                        required>
+                    <button type="submit" class="bg-green-600 text-white px-4 rounded font-bold">+</button>
+                </form>
+                <div id="player-master-list" class="divide-y max-h-96 overflow-y-auto">
+                    <!-- Javascript will populate this -->
+                </div>
+            </section>
+
+            <button onclick="app.router.go('home')"
+                class="w-full bg-gray-500 text-white py-3 rounded-lg font-bold">戻る</button>
+
+            <!-- Data Recovery UI -->
+            <section id="import-area" class="bg-white p-4 rounded-lg shadow mt-6 border-t-4 border-red-400 hidden">
+                <h3 class="font-bold text-lg mb-2 text-red-600">データ復旧（バックアップ読み込み）</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    手持ちのバックアップファイル(JSON)を選択して、データを復元します。<br>
+                    ※既存のデータに上書き・追加されます。
+                </p>
+                <input type="file" id="backup-file" accept=".json" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-red-50 file:text-red-700
+                    hover:file:bg-red-100
+                " onchange="app.ui.handleFileSelect(this)">
+            </section>
+
+            <!-- Data Migration UI -->
+            <section class="bg-white p-4 rounded-lg shadow mt-6 border-t-4 border-yellow-400">
+                <h3 class="font-bold text-lg mb-2">データ移行</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    ブラウザに保存されているデータをクラウド(Firestore)にアップロードします。<br>
+                    ※ログイン中のみ実行可能です。
+                </p>
+                <button id="btn-migrate" onclick="app.store.migrateToCloud()"
+                    class="w-full bg-yellow-500 text-white py-3 rounded-lg font-bold shadow hover:bg-yellow-600 disabled:opacity-50">
+                    ローカルデータをクラウドへアップロード
+                </button>
+            </section>
+        </div>
+
+        <!-- 3. New Match Modal -->
+        <div id="view-new-match" class="view-section hidden space-y-6">
+            <h2 class="text-2xl font-bold">新規試合記録</h2>
+
+            <form id="new-match-form" class="space-y-4 bg-white p-4 rounded-lg shadow">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1">対戦相手</label>
+                    <input type="text" id="match-opponent"
+                        class="w-full border-2 border-gray-300 rounded-lg p-3 text-lg" placeholder="チーム名" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-1">区分</label>
+                        <input type="text" id="match-label" class="w-full border p-3 rounded"
+                            list="match-label-suggestions" placeholder="例: 1本目">
+                        <datalist id="match-label-suggestions">
+                            <option value="前半">
+                            <option value="後半">
+                            <option value="1本目">
+                            <option value="2本目">
+                            <option value="3本目">
+                        </datalist>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 font-bold mb-1">時間 (分)</label>
+                        <input type="number" id="match-duration" class="w-full border p-3 rounded text-center"
+                            value="20" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">出場選手</label>
+                    <div id="match-player-selection"
+                        class="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto border p-2 rounded bg-gray-50">
+                        <!-- Checkboxes generated by JS -->
+                    </div>
+                </div>
+
+                <div class="flex gap-4 pt-4">
+                    <button type="button" onclick="app.router.go('home')"
+                        class="flex-1 bg-gray-300 text-gray-800 py-3 rounded-lg font-bold">キャンセル</button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold shadow-lg">試合開始</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 4. Active Match View -->
+        <div id="view-active-match" class="view-section hidden flex flex-col h-full">
+            <!-- Top Bar -->
+            <div class="flex justify-between items-center mb-4 bg-gray-800 text-white p-3 rounded-lg">
+                <div class="text-sm opacity-80" id="active-match-info">vs 相手 (1本目)</div>
+                <div class="font-mono text-3xl font-bold tracking-wider" id="active-timer">00:00</div>
+            </div>
+
+            <!-- Score Board -->
+            <div class="flex justify-between items-center bg-white rounded-xl shadow-lg p-6 mb-4">
+                <div class="text-center w-1/3">
+                    <div class="text-gray-500 text-sm mb-1" id="score-myself-name">MY TEAM</div>
+                    <div class="text-6xl font-black text-blue-600" id="score-myself">0</div>
+                </div>
+                <div class="text-4xl text-gray-300 font-light">-</div>
+                <div class="text-center w-1/3">
+                    <div class="text-gray-500 text-sm mb-1" id="score-opponent-name">OPPONENT</div>
+                    <div class="text-6xl font-black text-red-500" id="score-opponent">0</div>
+                </div>
+            </div>
+
+            <!-- Active Events List -->
+            <div id="active-event-list"
+                class="flex-grow overflow-y-auto mb-4 bg-gray-50 rounded-lg p-2 max-h-40 border-inner shadow-inner">
+                <!-- Events will appear here -->
+            </div>
+
+            <!-- Actions -->
+            <div class="grid grid-rows-2 gap-4 h-64">
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="app.match.recordGoal('myself')"
+                        class="btn-touch bg-blue-600 text-white text-xl rounded-xl shadow-lg active:bg-blue-700 flex flex-col justify-center items-center h-full">
+                        <span class="text-3xl mb-1">⚽</span>
+                        自得点
+                    </button>
+                    <button onclick="app.match.recordGoal('opponent')"
+                        class="btn-touch bg-red-500 text-white text-xl rounded-xl shadow-lg active:bg-red-600 flex flex-col justify-center items-center h-full">
+                        <span class="text-3xl mb-1">🥅</span>
+                        相手得点
+                    </button>
+                </div>
+
+                <div class="flex gap-4 items-center">
+                    <button id="btn-timer-toggle" onclick="app.match.toggleTimer()"
+                        class="flex-1 py-4 bg-yellow-500 text-white font-bold rounded-lg shadow active:bg-yellow-600 text-lg">
+                        STOP
+                    </button>
+                    <button onclick="app.match.finishMatch()"
+                        class="bg-gray-800 text-white px-6 py-4 rounded-lg font-bold shadow active:bg-gray-900">
+                        終了
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Result View (TBD) -->
+        <div id="view-result" class="view-section hidden">
+            <!-- Details implemented later -->
+        </div>
+
+    </main>
+
+    <!-- FAB for New Match -->
+    <button id="fab-new-match" onclick="app.router.go('new-match')"
+        class="fixed bottom-6 right-6 bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-4xl hover:scale-105 transition-transform z-40">
+        +
+    </button>
+
+    <!-- Modals -->
+    <!-- Z-60 to be above Match Detail (Z-50) -->
+    <div id="player-select-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+        <div class="bg-white rounded-lg w-full max-w-sm p-4 shadow-xl">
+            <h3 class="text-xl font-bold mb-4 text-center">得点者は？</h3>
+            <div id="modal-player-list" class="grid grid-cols-3 gap-2 mb-4 max-h-80 overflow-y-auto">
+                <!-- Players -->
+            </div>
+            <h3 class="text-md font-bold mb-2 text-gray-500 text-center">アシスト (任意)</h3>
+            <div id="modal-assist-list" class="grid grid-cols-3 gap-2 mb-4 max-h-40 overflow-y-auto hidden">
+                <!-- Initially hidden/toggle ?? or just show -->
+                <!-- Assist Players -->
+            </div>
+            <button onclick="app.ui.closeModal()" class="w-full py-3 bg-gray-200 rounded font-bold">キャンセル</button>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="report-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg w-full max-w-lg p-4 shadow-xl max-h-[90vh] flex flex-col">
+            <h3 class="text-xl font-bold mb-4 flex justify-between">
+                本日のレポート
+                <button onclick="document.getElementById('report-modal').classList.add('hidden')"
+                    class="text-gray-500 text-2xl">×</button>
+            </h3>
+
+            <div class="flex gap-2 mb-4 border-b">
+                <button onclick="app.report.switchTab('simple')" id="tab-simple"
+                    class="flex-1 py-2 font-bold border-b-2 border-blue-600 text-blue-600">簡易まとめ</button>
+                <button onclick="app.report.switchTab('detail')" id="tab-detail"
+                    class="flex-1 py-2 font-bold text-gray-500">詳細データ</button>
+                <button onclick="app.report.switchTab('csv')" id="tab-csv"
+                    class="flex-1 py-2 font-bold text-gray-500">CSV</button>
+            </div>
+
+            <textarea id="report-content" class="w-full flex-grow border p-2 font-mono text-sm bg-gray-50 mb-4 h-64"
+                readonly></textarea>
+
+            <button onclick="app.report.copyToClipboard()"
+                class="w-full py-3 bg-blue-600 text-white rounded font-bold shadow mb-2">クリップボードにコピー</button>
+            <div id="copy-feedback" class="text-center text-green-600 text-sm h-5 opacity-0 transition-opacity">コピーしました！
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Detail Modal (Edit/Delete) -->
+    <div id="match-detail-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg w-full max-w-lg p-4 shadow-xl max-h-[90vh] flex flex-col">
+            <h3 class="text-xl font-bold mb-4 flex justify-between">
+                試合詳細・編集
+                <button onclick="document.getElementById('match-detail-modal').classList.add('hidden')"
+                    class="text-gray-500 text-2xl">×</button>
+            </h3>
+
+            <!-- Basic Info Edit -->
+            <div class="space-y-3 mb-4 border-b pb-4">
+                <input type="hidden" id="edit-match-id">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-xs text-gray-500">対戦相手</label>
+                        <input type="text" id="edit-match-opponent" class="w-full border rounded p-2 font-bold">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500">区分</label>
+                        <input type="text" id="edit-match-label" class="w-full border rounded p-2">
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="app.match.updateMatchMeta()"
+                        class="bg-blue-600 text-white px-4 py-1 rounded text-sm hover:bg-blue-700">更新保存</button>
+                </div>
+            </div>
+
+            <!-- Score Visual -->
+            <div class="flex justify-center items-center mb-4 bg-gray-50 p-2 rounded">
+                <span class="text-2xl font-bold text-blue-600" id="detail-score-myself">0</span>
+                <span class="mx-2">-</span>
+                <span class="text-2xl font-bold text-red-500" id="detail-score-opponent">0</span>
+            </div>
+
+            <!-- Event List (Delete functionality) -->
+            <div class="flex gap-2 mb-2 items-end">
+                <label class="text-sm font-bold text-gray-700 mb-1">得点イベント</label>
+            </div>
+            <div class="flex gap-2 mb-2">
+                <button onclick="app.match.prepareAddGoal()"
+                    class="flex-1 bg-blue-100 text-blue-700 py-2 rounded text-sm font-bold hover:bg-blue-200">+
+                    得点追加</button>
+                <button onclick="app.match.addLossToHistory()"
+                    class="flex-1 bg-red-100 text-red-700 py-2 rounded text-sm font-bold hover:bg-red-200">+
+                    失点追加</button>
+            </div>
+            <div id="match-detail-events"
+                class="flex-grow overflow-y-auto border rounded bg-gray-50 p-2 space-y-2 mb-4">
+                <!-- Javascript will populate this -->
+            </div>
+
+            <!-- Delete Match -->
+            <div class="border-t pt-4">
+                <button onclick="app.match.deleteMatch()"
+                    class="w-full py-3 bg-red-100 text-red-600 rounded font-bold border border-red-200 hover:bg-red-200">
+                    この試合データを完全に削除
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="error-log"
+        style="color: red; background: #fee; padding: 10px; border: 1px solid red; display: none; white-space: pre-wrap; margin: 10px;">
+    </div>
+
+    <script>
+        // Emergency Error Handler
+        window.onerror = function (msg, url, line, col, error) {
+            const div = document.getElementById('error-log');
+            div.style.display = 'block';
+            div.textContent += 'Error: ' + msg + '\n' + url + ':' + line + ':' + col + '\n' + (error ? error.stack : '') + '\n\n';
+            alert('Error detected: ' + msg); // Ensure user sees it
+        };
+
+        // Emergency Backup Function (Independent of app.js)
+        window.rescueData = function () {
+            try {
+                const raw = localStorage.getItem('soccer-tracker-data');
+                if (!raw) {
+                    alert('localStorage is EMPTY. Data might be lost or browser is blocking access.');
+                    document.getElementById('error-log').style.display = 'block';
+                    document.getElementById('error-log').textContent += 'Storage Check: EMPTY\n';
+                    return;
+                }
+
+                alert('Data found! Size: ' + raw.length + ' bytes. Attempting download...');
+
+                const blob = new Blob([raw], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'rescue-backup-' + new Date().getTime() + '.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (e) {
+                alert('Rescue failed: ' + e.message);
+                document.getElementById('error-log').style.display = 'block';
+                document.getElementById('error-log').textContent += 'Rescue Error: ' + e.message + '\n';
+            }
+        };
+    </script>
+
+    <script src="app.js?v=34"></script>
+</body>
+
+</html>

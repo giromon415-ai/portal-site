@@ -1,0 +1,41 @@
+# デプロイ手順書
+
+プライバシー保護設定（検索回避、URL難読化）を施した状態で Firebase Hosting にデプロイする手順です。
+
+## 1. 前提条件
+- **Google アカウント** を持っていること。
+- **Node.js** がインストールされていること。（npm コマンドが使えること）
+
+## 2. Firebase CLI のセットアップ
+ターミナル（コマンドプロンプトやPowerShell）で以下を実行し、Firebaseツールをインストールしてログインします。
+
+```bash
+npm install -g firebase-tools
+firebase login
+```
+ブラウザが開き、Googleログインを求められるので承認してください。
+
+## 3. プロジェクトの作成
+今回提案したプロジェクトID `soccer-tracker-app-x9z4k2` で新しいプロジェクトを作成します。
+**注意:** このIDが既に誰かに使われている場合はエラーになります。その際は末尾の数字を変えるなどして試してください。
+
+```bash
+firebase projects:create soccer-tracker-app-x9z4k2 --display-name "Soccer Tracker"
+```
+
+## 4. デプロイの実行
+設定ファイル（[firebase.json](file:///C:/Users/girom/.gemini/antigravity/brain/28e6e5ca-66fc-4b6b-bbcc-9df081af96c8/soccer-tracker/firebase.json) 等）は既に準備済みですので、以下のコマンドを実行するだけで完了します。
+
+```bash
+firebase deploy
+```
+
+## 5. 完了確認
+成功すると、以下のようなURLが表示されます。これがあなたのアプリのURLです。
+
+**Hosting URL:** `https://soccer-tracker-app-x9z4k2.web.app`
+
+### プライバシー保護の確認
+- ブラウザでアクセスできることを確認してください。
+- 検索エンジンには登録されない設定になっています（`noindex`タグ、[robots.txt](file:///C:/Users/girom/.gemini/antigravity/brain/28e6e5ca-66fc-4b6b-bbcc-9df081af96c8/soccer-tracker/robots.txt)、HTTPヘッダー）。
+- URLは推測されにくいランダムな ID になっています。この URL を知っている人（送った相手）だけがアクセスできます。

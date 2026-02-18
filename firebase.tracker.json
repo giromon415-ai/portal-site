@@ -1,0 +1,17 @@
+{
+    "hosting": {
+        "public": "tracker-dist",
+        "ignore": [
+            "firebase.json",
+            "firebase.tracker.json",
+            "**/.*",
+            "**/node_modules/**"
+        ],
+        "rewrites": [
+            {
+                "source": "**",
+                "destination": "/index.html"
+            }
+        ]
+    }
+}

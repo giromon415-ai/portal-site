@@ -1,4 +1,4 @@
-{
+﻿{
   "hosting": {
     "site": "soccer-tracker-6288c",
     "public": "out",
@@ -9,6 +9,15 @@
       "**/node_modules/**"
     ],
     "headers": [
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
       {
         "source": "**",
         "headers": [

@@ -1,5 +1,6 @@
 ﻿import { config } from '@/config';
 import SectionTitle from './SectionTitle';
+import ScheduleRefreshButton from './ScheduleRefreshButton';
 
 // Helper to safely extract description
 function getSafeDescription(event: any): string {
@@ -107,7 +108,7 @@ export default async function ScheduleSection() {
     return (
         <section id="schedule" className="py-16 bg-gray-50">
             <div className="container mx-auto px-4">
-                <SectionTitle title="Schedule" subtitle="今後の予定 (最新JST)" />
+                <SectionTitle title="Schedule" subtitle="今後の予定" />
 
                 <div className="max-w-4xl mx-auto">
                     {events.length === 0 ? (
@@ -167,6 +168,8 @@ export default async function ScheduleSection() {
                             </ul>
                         </div>
                     )}
+                    
+                    <ScheduleRefreshButton />
 
                     <div className="mt-8 text-center">
                         <a

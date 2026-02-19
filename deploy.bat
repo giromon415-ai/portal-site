@@ -1,13 +1,15 @@
 @echo off
 echo =========================================
-echo  Portal Site Deploy Script (SAFETY MODE)
+echo  Portal Site Deploy Script (MULTI-SITE MODE)
 echo =========================================
 echo.
 
 :: --- CONFIGURATION ---
 set GIT_PATH="C:\Program Files\Git\bin\git.exe"
-:: HARDCODED PROJECT ID TO PREVENT ACCIDENTS
-set FIREBASE_PROJECT=partigiano2017-portal
+:: PROJECT ID (The container project)
+set FIREBASE_PROJECT=soccer-tracker-6288c
+:: SITE ID (The specific site within the project)
+set FIREBASE_SITE=partigiano2017-portal
 
 :: 1. Add changes to Git
 echo [1/5] Adding changes to Git...
@@ -42,9 +44,9 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
-:: 5. Deploy to Firebase (Explicit Project)
-echo [5/5] Deploying to Firebase Hosting (%FIREBASE_PROJECT%)...
-call npx firebase deploy --only hosting --project %FIREBASE_PROJECT%
+:: 5. Deploy to Firebase (Specific Site)
+echo [5/5] Deploying to Firebase Hosting (Site: %FIREBASE_SITE% in Project: %FIREBASE_PROJECT%)...
+call npx firebase deploy --only hosting:%FIREBASE_SITE% --project %FIREBASE_PROJECT%
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Firebase deploy failed.
     pause
@@ -53,6 +55,6 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo =========================================
-echo  SUCCESS! Site updated to %FIREBASE_PROJECT%
+echo  SUCCESS! Site updated to https://%FIREBASE_SITE%.web.app
 echo =========================================
 pause

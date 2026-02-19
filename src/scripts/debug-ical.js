@@ -6,65 +6,88 @@ async function debugSchedule() {
 
     try {
         const events = await ical.async.fromURL(src);
-        const keys = Object.keys(events);
-        console.log('Total events found: ' + keys.length);
+        const schedule = [];
 
-        // ---------------------------------------------------------
-        // 1. REPRODUCE CURRENT LOGIC (The "Shifted JST" approach)
-        // ---------------------------------------------------------
-        const nowShifted = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-        nowShifted.setHours(0, 0, 0, 0); 
-
-        console.log('\n--- DEBUG: CURRENT LOGIC (Shifted JST) ---');
-        console.log('System Real Time (ISO): ' + new Date().toISOString());
-        console.log('Calculated "now" (Shifted): ' + nowShifted.toISOString());
-
-        const limitDateShifted = new Date(nowShifted);
-        limitDateShifted.setMonth(limitDateShifted.getMonth() + 6);
-
-        // ---------------------------------------------------------
-        // 2. ABSOLUTE TIMESTAMP LOGIC (Correct approach)
-        // ---------------------------------------------------------
-        const nowUTC = new Date();
-        const jstDate = new Date(nowUTC.getTime() + (9 * 60 * 60 * 1000));
-        jstDate.setUTCHours(0, 0, 0, 0);
-        const midnightJSTAbsolute = new Date(jstDate.getTime() - (9 * 60 * 60 * 1000));
-
-        console.log('\n--- DEBUG: ABSOLUTE LOGIC ---');
-        console.log('Midnight JST (Absolute ISO): ' + midnightJSTAbsolute.toISOString());
-
-        console.log('\n--- PROCESS EVENTS ---');
+        // =========================================================
+        // EXACT LOGIC FROM ScheduleSection.tsx
+        // =========================================================
         
+        // 1. Get current UTC time
+        const nowUTC = new Date();
+        
+        // 2. Add 9 hours (JST offset)
+        const jstDate = new Date(nowUTC.getTime() + (9 * 60 * 60 * 1000));
+        
+        // 3. Set to midnight
+        jstDate.setUTCHours(0, 0, 0, 0);
+        
+        // 4. Subtract the 9 hours to get back to the TRUE UTC timestamp that represents JST Midnight.
+        const midnightJST = new Date(jstDate.getTime() - (9 * 60 * 60 * 1000));
+
+        // Use this absolute timestamp as 'now'
+        const now = midnightJST;
+
+        // Limit for recurring events (e.g., 6 months ahead)
+        const limitDate = new Date(now);
+        limitDate.setMonth(limitDate.getMonth() + 6);
+
+        console.log('\n--- DEBUG INFO ---');
+        console.log('System Time (UTC): ' + nowUTC.toISOString());
+        console.log('Calculated "now" (Midnight JST in UTC): ' + now.toISOString());
+        console.log('Limit Date: ' + limitDate.toISOString());
+        
+        console.log('\n--- PROCESSING EVENTS ---');
+
         for (const k in events) {
             const event = events[k];
             if (event.type === 'VEVENT') {
+                const duration = new Date(event.end).getTime() - new Date(event.start).getTime();
+
+                // Handle Recurring Events
                 if (event.rrule) {
-                    const dates = event.rrule.between(nowShifted, limitDateShifted);
-                    if (dates.length > 0) {
-                        dates.forEach(d => {
-                             const isPast = d < midnightJSTAbsolute;
-                             if (isPast) {
-                                  console.log('[BUG] Past Event included! ' + event.summary + ' @ ' + d.toISOString());
-                             } else {
-                                  // console.log('[OK] Future Event: ' + event.summary + ' @ ' + d.toISOString());
-                             }
+                    try {
+                        const dates = event.rrule.between(now, limitDate);
+                        dates.forEach((date) => {
+                            // Extra safety check: ensure the date is actually >= now
+                            if (date >= now) {
+                                console.log('[ACCEPTED] ' + event.summary + ' @ ' + date.toISOString());
+                                schedule.push({
+                                    summary: event.summary,
+                                    start: date
+                                });
+                            } else {
+                                console.log('[FILTERED] ' + event.summary + ' @ ' + date.toISOString() + ' (Reason: < now)');
+                            }
                         });
+                    } catch (e) {
+                        console.error('Error processing RRULE for event ' + event.summary + ':', e);
                     }
-                } else {
+                } 
+                // Handle Single Events
+                else {
                     const start = new Date(event.start);
-                    // Single event logic: if start >= nowShifted
-                    if (start >= nowShifted) {
-                        const isPast = start < midnightJSTAbsolute;
-                        if (isPast) {
-                             console.log('[BUG] Past Single Event included! ' + event.summary + ' @ ' + start.toISOString());
-                             console.log('  Reason: ' + start.toISOString() + ' >= ' + nowShifted.toISOString());
-                        }
+                    if (start >= now) {
+                         console.log('[ACCEPTED] ' + event.summary + ' @ ' + start.toISOString());
+                         schedule.push({
+                            summary: event.summary,
+                            start: start
+                        });
+                    } else {
+                         // console.log('[FILTERED] Single event ' + event.summary + ' @ ' + start.toISOString());
                     }
                 }
             }
         }
-    } catch (e) {
-        console.error('Error:', e);
+        
+        console.log('\n--- FINAL SCHEDULE (Top 5) ---');
+        schedule.sort((a, b) => a.start.getTime() - b.start.getTime());
+        schedule.slice(0, 5).forEach(e => {
+            console.log(e.start.toISOString() + ' - ' + e.summary);
+        });
+
+    } catch (error) {
+        console.error("Error fetching iCal data:", error);
+        return [];
     }
 }
 

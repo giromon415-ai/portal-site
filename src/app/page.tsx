@@ -7,7 +7,7 @@ import ScheduleSection from "@/components/ScheduleSection";
 import Link from "next/link";
 import { Match, Player } from "@/types";
 
-export const revalidate = 0; // Dynamic Mode (Debug)
+export const revalidate = 10800; // ISR Mode (3 hours)
 
 interface GroupedMatch {
     date: string;

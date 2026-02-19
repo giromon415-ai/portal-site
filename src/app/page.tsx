@@ -1,4 +1,4 @@
-import { getRecentMatches } from "@/services/matchService";
+﻿import { getRecentMatches } from "@/services/matchService";
 import { getPlayers } from "@/services/playerService";
 import MatchResultsSection from "@/components/MatchResultsSection";
 import Hero from "@/components/Hero";
@@ -7,7 +7,7 @@ import ScheduleSection from "@/components/ScheduleSection";
 import Link from "next/link";
 import { Match, Player } from "@/types";
 
-// export const revalidate = 3600; // SSG Mode
+export const revalidate = 10800; // ISR Mode (3 hours)
 
 interface GroupedMatch {
     date: string;

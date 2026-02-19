@@ -26,9 +26,15 @@ async function getSchedule() {
         const events = await icalLib.async.fromURL(src);
 
         const schedule = [];
-        const now = new Date(); // Current time
-        now.setHours(0, 0, 0, 0);
         
+        // --- TIMEZONE FIX (Strict JST) ---
+        // Create a Date object representing "Now" in JST
+        // toLocaleString with timeZone: 'Asia/Tokyo' gives a string like "2/19/2026, 8:52:19 PM"
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+        
+        // Reset to Midnight JST
+        now.setHours(0, 0, 0, 0);
+
         // Limit for recurring events (e.g., 6 months ahead)
         const limitDate = new Date(now);
         limitDate.setMonth(limitDate.getMonth() + 6);
@@ -41,10 +47,6 @@ async function getSchedule() {
 
                 // Handle Recurring Events
                 if (event.rrule) {
-                    // event.rrule is a parsed RRule object provided by node-ical
-                    // .between() returns all dates between start and end
-                    // We typically need to handle timezone offsets if dealing with strict times, 
-                    // but for a simple display, using the JS Date objects returned is usually sufficient.
                     try {
                         const dates = event.rrule.between(now, limitDate);
                         dates.forEach((date: Date) => {
@@ -57,13 +59,13 @@ async function getSchedule() {
                             });
                         });
                     } catch (e) {
-                        console.error(`Error processing RRULE for event ${event.summary}:`, e);
+                        console.error('Error processing RRULE for event ' + event.summary + ':', e);
                     }
                 } 
                 // Handle Single Events
                 else {
                     const start = new Date(event.start);
-                    // show events from today
+                    // show events from today (JST) onwards
                     if (start >= now) {
                         schedule.push({
                             summary: event.summary,
@@ -106,23 +108,29 @@ export default async function ScheduleSection() {
                                 {events.map((event, index) => {
                                     const descriptionLines = event.description ? event.description.split('\n').slice(0, 3) : [];
                                     
+                                    // Year formatting with Timezone using Intl.DateTimeFormat
+                                    const yearStr = new Intl.DateTimeFormat('ja-JP', { 
+                                        year: 'numeric', 
+                                        timeZone: 'Asia/Tokyo' 
+                                    }).format(event.start).replace('年', '');
+
                                     return (
                                         <li key={index} className="p-4 hover:bg-gray-50 transition flex flex-col md:flex-row gap-4">
                                             <div className="md:w-32 flex-shrink-0 text-center md:text-left flex flex-row md:flex-col justify-between md:justify-start items-center md:items-start border-b md:border-b-0 pb-2 md:pb-0 mb-2 md:mb-0">
                                                 <div className="text-sm font-bold text-gray-400">
-                                                    {event.start.getFullYear()}
+                                                    {yearStr}
                                                 </div>
                                                 <div className="flex items-baseline gap-2 md:block">
                                                     <div className="text-xl font-bold text-gray-800">
-                                                        {event.start.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })}
+                                                        {event.start.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric', timeZone: 'Asia/Tokyo' })}
                                                         <span className="ml-1 text-sm text-gray-500 font-normal">
-                                                            ({event.start.toLocaleDateString('ja-JP', { weekday: 'short' })})
+                                                            ({event.start.toLocaleDateString('ja-JP', { weekday: 'short', timeZone: 'Asia/Tokyo' })})
                                                         </span>
                                                     </div>
                                                     <div className="text-sm text-gray-500">
-                                                        {event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                        {event.start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })}
                                                         {' - '}
-                                                        {event.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                                                        {event.end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' })}
                                                     </div>
                                                 </div>
                                             </div>

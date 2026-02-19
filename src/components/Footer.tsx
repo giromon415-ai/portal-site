@@ -1,6 +1,9 @@
-import { config } from '@/config';
+﻿import { config } from '@/config';
 
 export default function Footer() {
+    // Generate a build-time timestamp string
+    const buildTime = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+
     return (
         <footer className="bg-gray-800 text-white py-8 mt-12">
             <div className="container mx-auto px-4 text-center">
@@ -12,10 +15,12 @@ export default function Footer() {
                     </p>
                 </div>
 
-                <p className="text-gray-400 text-sm">
-                    &copy; {new Date().getFullYear()} {config.teamName}. All rights reserved.
-                    <span className="opacity-50 ml-2 text-xs">v1.1.2</span>
-                </p>
+                <div className="text-gray-400 text-sm">
+                    <p>&copy; {new Date().getFullYear()} {config.teamName}. All rights reserved.</p>
+                    <p className="mt-2 opacity-50 text-xs">
+                        Build: {buildTime} (v1.2.0)
+                    </p>
+                </div>
             </div>
         </footer>
     );

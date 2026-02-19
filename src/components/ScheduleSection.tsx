@@ -107,7 +107,7 @@ export default async function ScheduleSection() {
     return (
         <section id="schedule" className="py-16 bg-gray-50">
             <div className="container mx-auto px-4">
-                <SectionTitle title="Schedule" subtitle="今後の予定" />
+                <SectionTitle title="Schedule" subtitle="今後の予定 (最新JST)" />
 
                 <div className="max-w-4xl mx-auto">
                     {events.length === 0 ? (

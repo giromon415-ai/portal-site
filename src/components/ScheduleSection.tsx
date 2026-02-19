@@ -18,22 +18,30 @@ async function getSchedule() {
     }
 
     try {
-        // Dynamic import to avoid build issues with node-ical
         const ical = await import('node-ical');
-        // Check if default exists for robustness
         const icalLib = ical.default || ical;
-
         const events = await icalLib.async.fromURL(src);
-
         const schedule = [];
         
-        // --- TIMEZONE FIX (Strict JST) ---
-        // Create a Date object representing "Now" in JST
-        // toLocaleString with timeZone: 'Asia/Tokyo' gives a string like "2/19/2026, 8:52:19 PM"
-        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+        // --- TIMEZONE FIX (Robust Absolute Method) ---
+        // Calculate the absolute timestamp of "Midnight JST Today" directly from UTC system time.
+        // This avoids string parsing issues with toLocaleString which can yield Invalid Date in some environments.
         
-        // Reset to Midnight JST
-        now.setHours(0, 0, 0, 0);
+        // 1. Get current UTC time
+        const nowUTC = new Date();
+        
+        // 2. Add 9 hours (JST offset) to getting "JST time correctly placed in the number"
+        const jstDate = new Date(nowUTC.getTime() + (9 * 60 * 60 * 1000));
+        
+        // 3. Set to midnight (UTC hours 0 = JST hours 0 because we shifted the value)
+        jstDate.setUTCHours(0, 0, 0, 0);
+        
+        // 4. Subtract the 9 hours to get back to the TRUE UTC timestamp that represents JST Midnight.
+        // This is the "cutoff" point. Any event before this timestamp is "Yesterday" in Japan.
+        const midnightJST = new Date(jstDate.getTime() - (9 * 60 * 60 * 1000));
+
+        // Use this absolute timestamp as 'now'
+        const now = midnightJST;
 
         // Limit for recurring events (e.g., 6 months ahead)
         const limitDate = new Date(now);
@@ -50,13 +58,16 @@ async function getSchedule() {
                     try {
                         const dates = event.rrule.between(now, limitDate);
                         dates.forEach((date: Date) => {
-                            schedule.push({
-                                summary: event.summary,
-                                start: date,
-                                end: new Date(date.getTime() + duration),
-                                location: event.location,
-                                description: description,
-                            });
+                            // Extra safety check: ensure the date is actually >= now
+                            if (date >= now) {
+                                schedule.push({
+                                    summary: event.summary,
+                                    start: date,
+                                    end: new Date(date.getTime() + duration),
+                                    location: event.location,
+                                    description: description,
+                                });
+                            }
                         });
                     } catch (e) {
                         console.error('Error processing RRULE for event ' + event.summary + ':', e);
@@ -65,7 +76,6 @@ async function getSchedule() {
                 // Handle Single Events
                 else {
                     const start = new Date(event.start);
-                    // show events from today (JST) onwards
                     if (start >= now) {
                         schedule.push({
                             summary: event.summary,

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from "react";
 import { Match, Player } from "@/types";
@@ -37,7 +37,12 @@ export default function StatsClient({ initialMatches, players }: StatsClientProp
   }, []);
 
   const formatDate = (d: Date) => {
-    return d.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    // getMonth() は0から始まるため +1 し、2桁になるようゼロ埋めする
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
   };
 
   useEffect(() => {
